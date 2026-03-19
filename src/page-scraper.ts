@@ -14,8 +14,7 @@ export function parseTables(html: string): ScrapedTable[] {
   $('table').each((_i, tableEl) => {
     const $table = $(tableEl);
 
-    const $prev = $table.prev();
-    const name = $prev.text().trim();
+    const name = $table.parent().prev().find('h3').first().text().trim();
 
     const headers: string[] = [];
     $table.find('thead th').each((_j, th) => {

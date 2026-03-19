@@ -9,23 +9,30 @@ const FIXTURE_PATH = path.resolve(
 
 const fixtureHtml = fs.readFileSync(FIXTURE_PATH, 'utf-8');
 
-// Minimal inline HTML for unit-level tests where name extraction is predictable
+// Minimal inline HTML matching the Northmarq DOM structure:
+// .rates-item > .table-title > h3  +  .rates-item > div > table
 const INLINE_HTML = `
 <html><body>
-  <h3>FANNIE MAE - CONVENTIONAL</h3>
-  <table>
-    <thead><tr><th>Term</th><th>LTV</th><th>DSCR</th><th>Spread (bps)</th><th>Rate</th></tr></thead>
-    <tbody>
-      <tr><td>15-Year</td><td>65%</td><td>1.35x</td><td>135 - 165</td><td>5.53% - 5.83%</td></tr>
-      <tr><td>10-Year</td><td>55%</td><td>1.55x</td><td>95 - 115</td><td>5.13% - 5.33%</td></tr>
-      <tr><td>  </td><td>  </td><td>  </td><td>  </td><td>  </td></tr>
-    </tbody>
-  </table>
+  <div class="rates-item">
+    <div class="table-title">
+      <h3 class="rates-title">FANNIE MAE - CONVENTIONAL</h3>
+    </div>
+    <div class="content">
+      <table>
+        <thead><tr><th>Term</th><th>LTV</th><th>DSCR</th><th>Spread (bps)</th><th>Rate</th></tr></thead>
+        <tbody>
+          <tr><td>15-Year</td><td>65%</td><td>1.35x</td><td>135 - 165</td><td>5.53% - 5.83%</td></tr>
+          <tr><td>10-Year</td><td>55%</td><td>1.55x</td><td>95 - 115</td><td>5.13% - 5.33%</td></tr>
+          <tr><td>  </td><td>  </td><td>  </td><td>  </td><td>  </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </body></html>
 `;
 
 describe('parseTables — inline HTML', () => {
-  it('parses table name from preceding sibling element', () => {
+  it('parses table name from h3 inside parent sibling .table-title div', () => {
     const tables = parseTables(INLINE_HTML);
     expect(tables).toHaveLength(1);
     expect(tables[0].name).toBe('FANNIE MAE - CONVENTIONAL');
@@ -61,20 +68,30 @@ describe('parseTables — inline HTML', () => {
   });
 
   it('trims whitespace from cell values', () => {
-    const html = `<html><body><h3>Test</h3><table>
-      <thead><tr><th> Term </th><th> LTV </th></tr></thead>
-      <tbody><tr><td>  5-Year  </td><td>  65%  </td></tr></tbody>
-    </table></body></html>`;
+    const html = `<html><body>
+      <div class="rates-item">
+        <div class="table-title"><h3>Test</h3></div>
+        <div><table>
+          <thead><tr><th> Term </th><th> LTV </th></tr></thead>
+          <tbody><tr><td>  5-Year  </td><td>  65%  </td></tr></tbody>
+        </table></div>
+      </div>
+    </body></html>`;
     const [table] = parseTables(html);
     expect(table.rows[0]['Term']).toBe('5-Year');
     expect(table.rows[0]['LTV']).toBe('65%');
   });
 
   it('stores empty cells as empty string ""', () => {
-    const html = `<html><body><h3>Test</h3><table>
-      <thead><tr><th>Term</th><th>LTV</th></tr></thead>
-      <tbody><tr><td>5-Year</td><td></td></tr></tbody>
-    </table></body></html>`;
+    const html = `<html><body>
+      <div class="rates-item">
+        <div class="table-title"><h3>Test</h3></div>
+        <div><table>
+          <thead><tr><th>Term</th><th>LTV</th></tr></thead>
+          <tbody><tr><td>5-Year</td><td></td></tr></tbody>
+        </table></div>
+      </div>
+    </body></html>`;
     const [table] = parseTables(html);
     expect(table.rows[0]['LTV']).toBe('');
   });
@@ -87,8 +104,14 @@ describe('parseTables — real HTML fixture', () => {
     tables = parseTables(fixtureHtml);
   });
 
-  it('finds multiple tables in the fixture', () => {
-    expect(tables.length).toBeGreaterThan(1);
+  it('finds 16 tables in the fixture', () => {
+    expect(tables).toHaveLength(16);
+  });
+
+  it('each table has a non-empty name', () => {
+    for (const table of tables) {
+      expect(table.name.length).toBeGreaterThan(0);
+    }
   });
 
   it('each table has at least one header', () => {
@@ -127,14 +150,14 @@ describe('parseTables — real HTML fixture', () => {
     }
   });
 
-  it('Fannie Mae table has correct headers (Term, LTV, DSCR, Spread, Rate)', () => {
-    // Table index 1 = Fannie Mae (first multifamily table after Current Index Rates)
-    const fannie = tables[1];
-    expect(fannie.headers).toEqual(['Term', 'LTV', 'DSCR', 'Spread (bps)', 'Rate']);
+  it('Fannie Mae table has correct name and headers', () => {
+    const fannie = tables.find((t) => t.name === 'FANNIE MAE - CONVENTIONAL');
+    expect(fannie).toBeDefined();
+    expect(fannie!.headers).toEqual(['Term', 'LTV', 'DSCR', 'Spread (bps)', 'Rate']);
   });
 
   it('Fannie Mae first row has correct raw string values', () => {
-    const fannie = tables[1];
+    const fannie = tables.find((t) => t.name === 'FANNIE MAE - CONVENTIONAL')!;
     const row = fannie.rows[0];
     expect(row['Term']).toBe('15-Year');
     expect(row['LTV']).toBe('65%');
