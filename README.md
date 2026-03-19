@@ -47,6 +47,11 @@ Root object with lowercased table names as keys → term names as keys → array
 }
 ```
 
+## Known Issues
+
+- **Hidden "current index rates" table**: The scraper picks up a "Current Index Rates" table that is hidden/inactive on the live site (rendered in a non-visible tab). Its data appears in `output/rates.json` under the `"current index rates"` key. The table is present in the raw HTML and gets parsed correctly, but it may not be intentional output. Consider filtering it or confirming with stakeholders.
+- **Flaky fixture path in `scraper.spec.ts`**: The test resolves the HTML fixture path relative to the worktree directory at test runtime. This approach is sensitive to where the test is run from and will break if the repo is moved or cloned to a different location. The path should be replaced with an environment variable or a path anchored to a stable project root.
+
 ## Assumptions
 
 - The page is server-rendered.

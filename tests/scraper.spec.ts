@@ -5,9 +5,9 @@ import { ScrapedTable } from '../src/types';
 
 const fixturePath = path.join(
   __dirname,
-  '..', // up to repo root (northmarq-rates-scraper-workspace-NORS-2)
+  '..', // up to repo root
+  '..',
   '..', // up to northmarq-scraper-demo
-  'northmarq-rates-scraper-workspace',
   'data',
   'documents',
   'northmarq-rates-and-spreads.html'
